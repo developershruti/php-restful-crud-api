@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>PHP & Ajax CRUD</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <table id="main" border="0" cellspacing="0">
+    <tr>
+      <td id="header">
+        <h1>PHP REST API CRUD</h1>
+
+        <div id="search-bar">
+          <label>Search :</label>
+          <input type="text" id="search" autocomplete="off">
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td id="table-form">
+        <form id="addForm">
+          Name : <input type="text" name="uname" id="uname">
+          Email : <input type="email" name="uemail" id="uemail">
+          Password : <input type="text" name="upassword" id="upassword">
+          <input type="submit" id="save-button" value="Save">
+        </form>
+      </td>
+    </tr>
+    <tr>
+      <td id="table-data">
+        <table width="100%" cellpadding="10px" >
+          <tr>
+            <th width="40px">Id</th>
+            <th>Name</th>
+            <th width="50px">Email</th>
+            <th width="150px">Password</th>
+            <th width="60px">Edit</th>
+            <th width="70px">Delete</th>
+          </tr>
+          <tbody id="load-table">
+           
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div id="error-message" class="messages"></div>
+  <div id="success-message" class="messages"></div>
+
+  <!-- Popup Modal Box for Update the Records -->
+  <div id="modal">
+    <div id="modal-form">
+      <h2>Edit Form</h2>
+      <form action="" id="edit-form">
+      <table cellpadding="10px" width="100%">
+        <tr>
+          <td width="90px">First Name</td>
+          <td><input type="text" name="uname" id="edit-name">
+              <input type="text" name="uid" id="edit-id" hidden="">
+          </td>
+        </tr>
+        <tr>
+          <td>Email</td>
+          <td><input type="email" name="uemail" id="edit-email"></td>
+        </tr>
+        <tr>
+          <td>Password</td>
+          <td><input type="text" name="upassword" id="edit-password"></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><input type="button" id="edit-submit" value="Update"></td>
+        </tr>
+      </table>
+      </form>
+      <div id="close-btn">X</div>
+    </div>
+  </div>
+
+<script type="text/javascript" src="js/jquery.js"></script>
+<script type="text/javascript">
+  $(document).ready(function(){
+
+  //Fetch All Records
+  function loadTable(){
+    $('#load-table').html("");
+    $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-fetch-all.php',
+      type: "GET",
+    
+      success : function(data){
+       if(data.status == false){
+        $("#load-table").append("<tr><td colspan ='6'> <h2>"+data.message+"</h2></td></tr>");
+       }else{
+         $.each(data, function(key, value){
+          $("#load-table").append("<tr>"
+                               +"<td>"+ value.id+"</td>" 
+                               +"<td>"+ value.username+"</td>" 
+                               +"<td>"+ value.email+"</td>" 
+                               +"<td>"+ value.password+"</td>" 
+
+                               +"<td><button class='edit-btn' data-eid='"+ value.id+"'> Edit</button></td>" 
+                               +"<td><button class='delete-btn' data-id='"+ value.id+ "'> Delete</button></td>" 
+                            
+                               +"</tr>");
+
+         });
+       }
+      }
+      
+    });
+
+  }
+
+  loadTable();
+  
+  //show succes or Error messages
+  function message(message,status){
+   if(status == true){
+    $('#success-message').html(message).slideDown(); // slideDown jquery ka function hai
+    $('#error-message').slideUp();
+    setTimeout(function(){
+     $('#success-message').slideUp();
+    },4000);
+
+   }else if(status == false){
+    $('#error-message').html(message).slideDown();
+    $('#success-message').slideUp();
+
+    setTimeout(function(){
+     $('#error-message').slideUp();
+    },4000);
+   }
+  }
+
+  function jsonData(targetForm){
+    var arr = $(targetForm).serializeArray(); //serializearray() function  form ke sare data ko array mai convert kr dega
+  //  console.log(arr);
+   var obj={};  // ab js object mai convert krenge
+   for(var a=0; a<arr.length; a++){
+    if(arr[a].value == ""){
+      return false;
+    }
+    obj[arr[a].name] = arr[a].value;
+   }
+
+   var json_string = JSON.stringify(obj); // json.stringify() function basically used to convert js object in json formate
+    return json_string;
+  }
+
+  //Insert New Record
+  $("#save-button").on("click", function(e){
+   e.preventDefault(); // submit button ki functionality ko sokne ke liye
+    
+   var jsonObj = jsonData("#addForm");
+
+   if(jsonObj == false){
+    message("All fields are required.", false);
+   }else{
+     $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-insert.php',
+      type: "POST",
+      data: jsonObj,
+    
+      success : function(data){
+        message(data.message, data.status);
+
+        if(data.status == true){
+          loadTable();
+          $('#addForm').trigger("reset");
+        }
+      
+      }
+      });
+   }
+  
+  });
+
+  //Delete Record
+
+  $(document).on("click", ".delete-btn", function(){
+    if(confirm("Do you really want to delete this record ? ")){
+      var user_id = $(this).data("id"); // yaha se us id ko lenge jaha se single recordshow hona hai modal form mai
+    var obj = {uid : user_id};  // phele data ko object mai convert krenge 
+    var myJSON = JSON.stringify(obj); // then data ko json mai convert krenge json.stringify() function basically used to convert js object in json formate
+
+     var row = this;
+
+    $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-delete.php',
+      type: "POST",
+      data: myJSON,
+      success : function(data){
+        message(data.message, data.status);
+
+        if(data.status == true){
+          $(row).closest("tr").fadeOut();
+
+        }
+
+      }
+    });
+    }
+  });
+
+  //Fetch Single Record : Show in Modal Box
+  $(document).on("click",".edit-btn", function(){
+    $("#modal").show();
+    var user_id = $(this).data("eid"); // yaha se us id ko lenge jaha se single recordshow hona hai modal form mai
+    var obj = {uid : user_id};  // phele data ko object mai convert krenge 
+    var myJSON = JSON.stringify(obj); // then data ko json mai convert krenge json.stringify() function basically used to convert js object in json formate
+
+    $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-fetch-single.php',
+      type: "POST",
+      data: myJSON,
+      success : function(data){
+       $('#edit-id').val(data[0].id);
+       $("#edit-name").val(data[0].username);
+       $("#edit-email").val(data[0].email);
+       $("#edit-password").val(data[0].password);
+
+      }
+    });
+  });
+
+  //Hide Modal Box
+  $("#close-btn").on("click", function(){
+    $("#modal").hide();
+
+  });
+
+  //Update Record
+
+  $("#edit-submit").on("click", function(e){
+   e.preventDefault(); // submit button ki functionality ko sokne ke liye
+    
+   var jsonObj = jsonData("#edit-form");
+
+   if(jsonObj == false){
+    message("All fields are required.", false);
+   }else{
+     $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-update.php',
+      type: "POST",
+      data: jsonObj,
+    
+      success : function(data){
+        message(data.message, data.status);
+
+        if(data.status == true){
+          $("#modal").hide();
+          loadTable();
+        
+        }
+      
+      }
+      });
+   }
+  
+  });
+
+  //Live Search Record
+
+  $("#search").on("keyup", function(){
+    var search_term = $(this).val();
+
+    $("#load-table").html("");
+
+    $.ajax({
+      url: 'http://localhost/php-rest-api-html/php-rest-api-html/api-search.php?search=' + search_term,
+      type: "GET",
+
+      success : function(data){
+       if(data.status == false){
+        $("#load-table").append("<tr><td colspan ='6'> <h2>"+data.message+"</h2></td></tr>");
+       }else{
+         $.each(data, function(key, value){
+          $("#load-table").append("<tr>"
+                               +"<td>"+ value.id+"</td>" 
+                               +"<td>"+ value.username+"</td>" 
+                               +"<td>"+ value.email+"</td>" 
+                               +"<td>"+ value.password+"</td>" 
+
+                               +"<td><button class='edit-btn' data-eid='"+ value.id+"'> Edit</button></td>" 
+                               +"<td><button class='delete-btn' data-id='"+ value.id+ "'> Delete</button></td>" 
+                            
+                               +"</tr>");
+
+         });
+       }
+      }
+     
+
+
+ });
+
+  });
+
+  });
+
+</script>
+</body>
+</html>
